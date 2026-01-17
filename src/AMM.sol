@@ -33,4 +33,25 @@ contract AMM is ERC20, IAMM, ReentrancyGuard, AMMEvents {
         tokenA = IERC20(_tokenA);
         tokenB = IERC20(_tokenB);
     }
+
+    function getReserves() external view override returns (uint256, uint256) {
+        return (reserveA, reserveB);
+    }
+
+    function getAmountOut(
+        uint256 _amountIn,
+        uint256 _reserveIn,
+        uint256 _reserveOut
+    ) external pure override returns (uint256) {
+        if (_amountIn == 0) revert InsufficientAmount();
+        if (_reserveIn == 0 || _reserveOut == 0) revert InsufficientLiquidity();
+
+        uint256 amountInWithFee = _amountIn * 997;
+        uint256 numerator = amountInWithFee * _reserveOut;
+        uint256 denominator = (_reserveIn * 1000) + amountInWithFee;
+
+        uint256 amountOut = numerator / denominator;
+
+        return amountOut;
+    }
 }

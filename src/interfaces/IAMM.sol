@@ -23,7 +23,7 @@ interface IAMM {
     function getReserves() external view returns (uint256, uint256);
     function getAmountOut(
         uint256 _amountIn,
-        uint256 reserveIn,
+        uint256 _reserveIn,
         uint256 _reserveOut
     ) external pure returns (uint256);
 }
