@@ -23,6 +23,7 @@ contract AMM is ERC20, IAMM, ReentrancyGuard, AMMEvents {
     error TransferFailed();
     error SlippageExceeded();
     error ZeroAddress();
+    error KInvariantViolation();
 
     constructor(
         address _tokenA,
@@ -158,6 +159,8 @@ contract AMM is ERC20, IAMM, ReentrancyGuard, AMMEvents {
 
         if (_amountOut < _minAmountOut) revert SlippageExceeded();
 
+        uint256 kBefore = reserveA * reserveB;
+
         bool successTransferA = tokenA.transferFrom(
             msg.sender,
             address(this),
@@ -170,7 +173,41 @@ contract AMM is ERC20, IAMM, ReentrancyGuard, AMMEvents {
         reserveA += _amountIn;
         reserveB -= _amountOut;
 
+        if (reserveA * reserveB < kBefore) revert KInvariantViolation();
+
         emit Swap(msg.sender, address(tokenA), _amountIn, _amountOut);
+        emit Sync(reserveA, reserveB);
+
+        return (_amountOut);
+    }
+
+    function swapBForA(
+        uint256 _amountIn,
+        uint256 _minAmountOut
+    ) external override nonReentrant returns (uint256) {
+        if (_amountIn == 0) revert InsufficientAmount();
+
+        uint256 _amountOut = this.getAmountOut(_amountIn, reserveB, reserveA);
+
+        if (_amountOut < _minAmountOut) revert SlippageExceeded();
+
+        uint256 kBefore = reserveA * reserveB;
+
+        bool successTransferB = tokenB.transferFrom(
+            msg.sender,
+            address(this),
+            _amountIn
+        );
+        if (!successTransferB) revert TransferFailed();
+        bool successTransferA = tokenA.transfer(msg.sender, _amountOut);
+        if (!successTransferA) revert TransferFailed();
+
+        reserveB += _amountIn;
+        reserveA -= _amountOut;
+
+        if (reserveA * reserveB < kBefore) revert KInvariantViolation();
+
+        emit Swap(msg.sender, address(tokenB), _amountIn, _amountOut);
         emit Sync(reserveA, reserveB);
 
         return (_amountOut);
